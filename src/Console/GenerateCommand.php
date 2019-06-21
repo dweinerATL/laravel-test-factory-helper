@@ -9,6 +9,7 @@ use Illuminate\Support\Str;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
+use phpDocumentor\Reflection\DocBlockFactory;
 
 class GenerateCommand extends Command
 {
@@ -208,30 +209,40 @@ class GenerateCommand extends Command
     protected function getPropertiesFromTable($model)
     {
         $table = $model->getConnection()->getTablePrefix() . $model->getTable();
-        $schema = $model->getConnection()->getDoctrineSchemaManager($table);
-        $databasePlatform = $schema->getDatabasePlatform();
-        $databasePlatform->registerDoctrineTypeMapping('enum', 'string');
+        $hasDoctrine = method_exists($model, 'getDoctrineSchemaManager');
 
-        $platformName = $databasePlatform->getName();
-        $customTypes = $this->laravel['config']->get("ide-helper.custom_db_types.{$platformName}", array());
-        foreach ($customTypes as $yourTypeName => $doctrineTypeName) {
-            $databasePlatform->registerDoctrineTypeMapping($yourTypeName, $doctrineTypeName);
+        if ($hasDoctrine) {
+            $schema = $model->getConnection()->getDoctrineSchemaManager($table);
+            $databasePlatform = $schema->getDatabasePlatform();
+            $databasePlatform->registerDoctrineTypeMapping('enum', 'string');
+
+            $platformName = $databasePlatform->getName();
+            $customTypes = $this->laravel['config']->get("ide-helper.custom_db_types.{$platformName}", array());
+            foreach ($customTypes as $yourTypeName => $doctrineTypeName) {
+                $databasePlatform->registerDoctrineTypeMapping($yourTypeName, $doctrineTypeName);
+            }
+
+            $database = null;
+            if (strpos($table, '.')) {
+                list($database, $table) = explode('.', $table);
+            }
+
+            $columns = $schema->listTableColumns($table, $database);
+        } else {
+            $factory = DocBlockFactory::createInstance();
+            $reflectionClass = new \ReflectionClass($model);
+            $docblock = $factory->create($reflectionClass->getDocComment());
+            $columns = $docblock->getTagsByName('property');
+            // ->getVariableName()
         }
-
-        $database = null;
-        if (strpos($table, '.')) {
-            list($database, $table) = explode('.', $table);
-        }
-
-        $columns = $schema->listTableColumns($table, $database);
 
         if ($columns) {
             foreach ($columns as $column) {
-                $name = $column->getName();
+                $name = $hasDoctrine ? $column->getName() : $column->getVariableName();
                 if (in_array($name, $model->getDates())) {
                     $type = 'datetime';
                 } else {
-                    $type = $column->getType()->getName();
+                    $type = $hasDoctrine ? $column->getType()->getName() : $column->getType()->__toString();
                 }
                 if (!($model->incrementing && $model->getKeyName() === $name) &&
                     $name !== $model::CREATED_AT &&
@@ -333,7 +344,7 @@ class GenerateCommand extends Command
             'name' => '$faker->name',
             'password' => 'bcrypt($faker->password)',
             'phone' => '$faker->phoneNumber',
-            'phone_numer' => '$faker->phoneNumber',
+            'phone_number' => '$faker->phoneNumber',
             'postcode' => '$faker->postcode',
             'remember_token' => 'Str::random(10)',
             'slug' => '$faker->slug',
