@@ -10,6 +10,7 @@ use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use phpDocumentor\Reflection\DocBlockFactory;
+use Dweineratl\LaravelModelHelper\ModelAbstractionFactory;
 
 class GenerateCommand extends Command
 {
@@ -208,41 +209,15 @@ class GenerateCommand extends Command
      */
     protected function getPropertiesFromTable($model)
     {
-        $table = $model->getConnection()->getTablePrefix() . $model->getTable();
-        $hasDoctrine = method_exists($model, 'getDoctrineSchemaManager');
-
-        if ($hasDoctrine) {
-            $schema = $model->getConnection()->getDoctrineSchemaManager($table);
-            $databasePlatform = $schema->getDatabasePlatform();
-            $databasePlatform->registerDoctrineTypeMapping('enum', 'string');
-
-            $platformName = $databasePlatform->getName();
-            $customTypes = $this->laravel['config']->get("ide-helper.custom_db_types.{$platformName}", array());
-            foreach ($customTypes as $yourTypeName => $doctrineTypeName) {
-                $databasePlatform->registerDoctrineTypeMapping($yourTypeName, $doctrineTypeName);
-            }
-
-            $database = null;
-            if (strpos($table, '.')) {
-                list($database, $table) = explode('.', $table);
-            }
-
-            $columns = $schema->listTableColumns($table, $database);
-        } else {
-            $factory = DocBlockFactory::createInstance();
-            $reflectionClass = new \ReflectionClass($model);
-            $docblock = $factory->create($reflectionClass->getDocComment());
-            $columns = $docblock->getTagsByName('property');
-            // ->getVariableName()
-        }
+        $columns = ModelAbstractionFactory::create($model);
 
         if ($columns) {
             foreach ($columns as $column) {
-                $name = $hasDoctrine ? $column->getName() : $column->getVariableName();
+                $name = $column->getName();
                 if (in_array($name, $model->getDates())) {
                     $type = 'datetime';
                 } else {
-                    $type = $hasDoctrine ? $column->getType()->getName() : $column->getType()->__toString();
+                    $type = $column->getType();
                 }
                 if (!($model->incrementing && $model->getKeyName() === $name) &&
                     $name !== $model::CREATED_AT &&
