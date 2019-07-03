@@ -10,7 +10,7 @@
         "illuminate/filesystem": "^5.5",
         "doctrine/dbal": "~2.3",
         "phpdocumentor/reflection-docblock": "^4.3",
-        "dweineratl/laravel-model-abstraction-helper": "dev-develop"
+        "dweineratl/laravel-model-abstraction-helper": "^1.0.0"
     },
     "autoload": {
         "psr-4": {
@@ -23,11 +23,5 @@
                 "Mpociot\\LaravelTestFactoryHelper\\TestFactoryHelperServiceProvider"
             ]
         }
-    },
-    "repositories": [
-        {
-            "type": "git",
-            "url": "git@github.com:dweinerATL/laravel-model-abstraction-helper.git"
-        }
-    ]
+    }
 }
