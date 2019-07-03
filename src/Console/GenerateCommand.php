@@ -209,7 +209,7 @@ class GenerateCommand extends Command
      */
     protected function getPropertiesFromTable($model)
     {
-        $columns = ModelAbstractionFactory::create($model);
+        $columns = ModelAbstractionFactory::getColumns($model);
 
         if ($columns) {
             foreach ($columns as $column) {
